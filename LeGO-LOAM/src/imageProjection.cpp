@@ -153,7 +153,7 @@ public:
         groundMat = cv::Mat(N_SCAN, Horizon_SCAN, CV_8S, cv::Scalar::all(0));
         labelMat = cv::Mat(N_SCAN, Horizon_SCAN, CV_32S, cv::Scalar::all(0));
         labelCount = 1;
-
+        fullCloud->points.resize(N_SCAN*Horizon_SCAN);
         std::fill(fullCloud->points.begin(), fullCloud->points.end(), nanPoint);
         std::fill(fullInfoCloud->points.begin(), fullInfoCloud->points.end(), nanPoint);
     }
@@ -187,9 +187,9 @@ public:
         // 3. Range image projection
         projectPointCloud();
         // 4. Mark ground points
-        groundRemoval();
+        //groundRemoval();
         // 5. Point cloud segmentation
-        cloudSegmentation();
+        //cloudSegmentation();
         // 6. Publish all clouds
         publishCloud();
         // 7. Reset parameters for next iteration
@@ -206,6 +206,12 @@ public:
         } else if (segMsg.endOrientation - segMsg.startOrientation < M_PI)
             segMsg.endOrientation += 2 * M_PI;
         segMsg.orientationDiff = segMsg.endOrientation - segMsg.startOrientation;
+    }
+    double norm(PointType start,PointType end){
+        return sqrt(pow(start.x-end.x,2)+pow(start.y-end.y,2)+pow(start.z-end.z,2));
+    }
+    double norm(PointType start){
+        return sqrt(pow(start.x,2)+pow(start.y,2)+pow(start.z,2));
     }
 
     void projectPointCloud(){
@@ -242,7 +248,7 @@ public:
                 continue;
 
             range = sqrt(thisPoint.x * thisPoint.x + thisPoint.y * thisPoint.y + thisPoint.z * thisPoint.z);
-            if (range < sensorMinimumRange)
+            if (range < sensorMinimumRange && range>100.0)
                 continue;
             
             rangeMat.at<float>(rowIdn, columnIdn) = range;
@@ -254,6 +260,53 @@ public:
             fullInfoCloud->points[index] = thisPoint;
             fullInfoCloud->points[index].intensity = range; // the corresponding range of a point is saved as "intensity"
         }
+        //insert point from ring
+        int start_size=(int)fullCloud->points.size();
+        ROS_INFO("fullCloud start_size:%d",start_size);
+        int drop_out_point_num=0;
+        for(int i=0;i<start_size-Horizon_SCAN;i++){
+            int column_id=i%Horizon_SCAN;
+            //确保左右有点
+            if (column_id <= 0 || column_id >= Horizon_SCAN-1)
+                continue;
+            //如果俩个端点均存在
+            if(fullInfoCloud->points[i].intensity>0&&fullInfoCloud->points[i+Horizon_SCAN].intensity>0) {
+                PointType temp_point, start, end;
+                start = fullInfoCloud->points[i];
+                end = fullInfoCloud->points[i + Horizon_SCAN];
+                temp_point.x = end.x - start.x;
+                temp_point.y = end.y - start.y;
+                temp_point.z = end.z - start.z;
+
+                double dist=norm(temp_point);
+
+                double max_range = fmax(fmax(fabs(start.intensity - fullInfoCloud->points[i - 1].intensity),
+                                             fabs(start.intensity - fullInfoCloud->points[i + 1].intensity)),
+                                        fmax(fabs(end.intensity - fullInfoCloud->points[i + Horizon_SCAN - 1].intensity),
+                                             fabs(end.intensity - fullInfoCloud->points[i + Horizon_SCAN + 1].intensity)));
+                if(max_range>0.3){
+                    drop_out_point_num+=(int)(dist/0.1);
+                    continue;
+                }
+                
+                //10cm 一个点
+                int num = (int) (dist / 0.1);
+                if (num > 0) {
+                    temp_point.x /= (num + 1);
+                    temp_point.y /= (num + 1);
+                    temp_point.z /= (num + 1);
+                }
+                while (num--) {
+                    start.x += temp_point.x;
+                    start.y += temp_point.y;
+                    start.z += temp_point.z;
+                    fullCloud->points.push_back(start);
+                }
+            }
+        }
+        int end_size=(int)fullCloud->points.size();
+        ROS_INFO("fullCloud end_size:%d",end_size);
+        ROS_INFO("drop_out_point_num:%d",drop_out_point_num);
     }
 
 
