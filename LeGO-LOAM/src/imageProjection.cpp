@@ -310,12 +310,6 @@ public:
                 if(temp_point.z*temp_point.z<dist*dist*0.8){
                     if(row_id<groundScanInd&&temp_point.z*temp_point.z<dist*dist*0.2){
                         this_point_label=1;
-//                        double angle =
-//                                atan2(temp_point.z, sqrt(temp_point.x * temp_point.x + temp_point.y * temp_point.y)) *
-//                                180 / M_PI;
-//                        if (abs(angle - sensorMountAngle) <= 10) {
-//                            this_point_label=1;
-//                        }
                     }
                 }else{
                     this_point_label=0;
