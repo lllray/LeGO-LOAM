@@ -266,33 +266,30 @@ public:
         int drop_out_point_num=0;
         const int neighbor=3;
         //mark bad point
-//        for(int i=0;i<start_size-Horizon_SCAN;i++){
-//            int column_id=i%Horizon_SCAN;
-//            if (column_id < neighbor || column_id >= Horizon_SCAN-neighbor)
-//                continue;
-//            float depth1 = fullInfoCloud->points[i].intensity;
-//            float depth2 = fullInfoCloud->points[i+1].intensity;
-//            if(depth1<0||depth2<0){
-//                for(int j=0;j<=neighbor;j++){
-//                    fullCloud->points[i-j].intensity=-1;
-//                    fullCloud->points[i+j].intensity=-1;
-//                }
-//            }
-//            else if (depth1 - depth2 > 0.3){
-//                for(int j=0;j<=neighbor;j++){
-//                    fullCloud->points[i-j].intensity=-1;
-//                }
-//            }else if (depth2 - depth1 > 0.3){
-//                for(int j=1;j<=1+neighbor;j++){
-//                    fullCloud->points[i+j].intensity=-1;
-//                }
-//            }
-//        }
+        for(int i=0;i<start_size-Horizon_SCAN;i++){
+            int column_id=i%Horizon_SCAN;
+            if (column_id < neighbor || column_id >= Horizon_SCAN-1-neighbor)
+                continue;
+            float depth1 = fullInfoCloud->points[i].intensity;
+            float depth2 = fullInfoCloud->points[i+1].intensity;
+            if(depth1<0||depth2<0){
+                continue;
+            }
+            else if (depth1 - depth2 > 0.3){
+                for(int j=0;j<=neighbor;j++){
+                    fullInfoCloud->points[i-j].intensity=-1;
+                }
+            }else if (depth2 - depth1 > 0.3){
+                for(int j=1;j<=1+neighbor;j++){
+                    fullInfoCloud->points[i+j].intensity=-1;
+                }
+            }
+        }
         for(int i=0;i<start_size-Horizon_SCAN;i++){
             int column_id=i%Horizon_SCAN;
             int row_id=(int)(i/Horizon_SCAN);
             //确保左右有点
-            if (column_id < neighbor || column_id >= Horizon_SCAN-neighbor)
+            if (column_id < neighbor || column_id >= Horizon_SCAN-1-neighbor)
                 continue;
             //如果俩个端点均存在
             if(fullInfoCloud->points[i].intensity>0&&fullInfoCloud->points[i+Horizon_SCAN].intensity>0) {
