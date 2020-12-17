@@ -260,14 +260,39 @@ public:
             fullInfoCloud->points[index] = thisPoint;
             fullInfoCloud->points[index].intensity = range; // the corresponding range of a point is saved as "intensity"
         }
+
         //insert point from ring
         int start_size=(int)fullCloud->points.size();
         ROS_INFO("fullCloud start_size:%d",start_size);
         int drop_out_point_num=0;
+        const int neighbor=3;
+        //mark bad point
+//        for(int i=0;i<start_size-Horizon_SCAN;i++){
+//            int column_id=i%Horizon_SCAN;
+//            if (column_id < neighbor || column_id >= Horizon_SCAN-neighbor)
+//                continue;
+//            float depth1 = fullInfoCloud->points[i].intensity;
+//            float depth2 = fullInfoCloud->points[i+1].intensity;
+//            if(depth1<0||depth2<0){
+//                for(int j=0;j<=neighbor;j++){
+//                    fullCloud->points[i-j].intensity=-1;
+//                    fullCloud->points[i+j].intensity=-1;
+//                }
+//            }
+//            else if (depth1 - depth2 > 0.3){
+//                for(int j=0;j<=neighbor;j++){
+//                    fullCloud->points[i-j].intensity=-1;
+//                }
+//            }else if (depth2 - depth1 > 0.3){
+//                for(int j=1;j<=1+neighbor;j++){
+//                    fullCloud->points[i+j].intensity=-1;
+//                }
+//            }
+//        }
         for(int i=0;i<start_size-Horizon_SCAN;i++){
             int column_id=i%Horizon_SCAN;
             //确保左右有点
-            if (column_id <= 0 || column_id >= Horizon_SCAN-1)
+            if (column_id < neighbor || column_id >= Horizon_SCAN-neighbor)
                 continue;
             //如果俩个端点均存在
             if(fullInfoCloud->points[i].intensity>0&&fullInfoCloud->points[i+Horizon_SCAN].intensity>0) {
@@ -278,17 +303,11 @@ public:
                 temp_point.y = end.y - start.y;
                 temp_point.z = end.z - start.z;
 
+                double min_range=fmin(start.intensity,end.intensity);
                 double dist=norm(temp_point);
-
-                double max_range = fmax(fmax(fabs(start.intensity - fullInfoCloud->points[i - 1].intensity),
-                                             fabs(start.intensity - fullInfoCloud->points[i + 1].intensity)),
-                                        fmax(fabs(end.intensity - fullInfoCloud->points[i + Horizon_SCAN - 1].intensity),
-                                             fabs(end.intensity - fullInfoCloud->points[i + Horizon_SCAN + 1].intensity)));
-                if(max_range>0.3){
-                    drop_out_point_num+=(int)(dist/0.1);
-                    continue;
-                }
-                
+                //1:10
+                if(temp_point.z*temp_point.z<dist*dist*0.8)continue;
+                //if(dist>min_range)continue;
                 //10cm 一个点
                 int num = (int) (dist / 0.1);
                 if (num > 0) {
