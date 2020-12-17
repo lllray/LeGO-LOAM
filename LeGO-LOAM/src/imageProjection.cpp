@@ -153,7 +153,6 @@ public:
         groundMat = cv::Mat(N_SCAN, Horizon_SCAN, CV_8S, cv::Scalar::all(0));
         labelMat = cv::Mat(N_SCAN, Horizon_SCAN, CV_32S, cv::Scalar::all(0));
         labelCount = 1;
-        fullCloud->points.resize(N_SCAN*Horizon_SCAN);
         std::fill(fullCloud->points.begin(), fullCloud->points.end(), nanPoint);
         std::fill(fullInfoCloud->points.begin(), fullInfoCloud->points.end(), nanPoint);
     }
@@ -291,6 +290,7 @@ public:
 //        }
         for(int i=0;i<start_size-Horizon_SCAN;i++){
             int column_id=i%Horizon_SCAN;
+            int row_id=(int)(i/Horizon_SCAN);
             //确保左右有点
             if (column_id < neighbor || column_id >= Horizon_SCAN-neighbor)
                 continue;
@@ -305,27 +305,42 @@ public:
 
                 double min_range=fmin(start.intensity,end.intensity);
                 double dist=norm(temp_point);
-                //1:10
-                if(temp_point.z*temp_point.z<dist*dist*0.8)continue;
+                int this_point_label=-1;//-1:nan 0:no ground 1:ground
+                //2:10
+                if(temp_point.z*temp_point.z<dist*dist*0.8){
+                    if(row_id<groundScanInd&&temp_point.z*temp_point.z<dist*dist*0.2){
+                        this_point_label=1;
+//                        double angle =
+//                                atan2(temp_point.z, sqrt(temp_point.x * temp_point.x + temp_point.y * temp_point.y)) *
+//                                180 / M_PI;
+//                        if (abs(angle - sensorMountAngle) <= 10) {
+//                            this_point_label=1;
+//                        }
+                    }
+                }else{
+                    this_point_label=0;
+                }
                 //if(dist>min_range)continue;
                 //10cm 一个点
-                int num = (int) (dist / 0.1);
-                if (num > 0) {
-                    temp_point.x /= (num + 1);
-                    temp_point.y /= (num + 1);
-                    temp_point.z /= (num + 1);
-                }
-                while (num--) {
-                    start.x += temp_point.x;
-                    start.y += temp_point.y;
-                    start.z += temp_point.z;
-                    fullCloud->points.push_back(start);
+                if(this_point_label>=0) {
+                    int num = (int) (dist / 0.1);
+                    if (num > 0) {
+                        temp_point.x /= (num + 1);
+                        temp_point.y /= (num + 1);
+                        temp_point.z /= (num + 1);
+                    }
+                    while (num--) {
+                        start.x += temp_point.x;
+                        start.y += temp_point.y;
+                        start.z += temp_point.z;
+                        start.intensity=(double)this_point_label;
+                        outlierCloud->push_back(start);
+                    }
                 }
             }
         }
-        int end_size=(int)fullCloud->points.size();
-        ROS_INFO("fullCloud end_size:%d",end_size);
-        ROS_INFO("drop_out_point_num:%d",drop_out_point_num);
+        int insert_size=(int)outlierCloud->points.size();
+        ROS_INFO("insert_size end_size:%d",insert_size);
     }
 
 
